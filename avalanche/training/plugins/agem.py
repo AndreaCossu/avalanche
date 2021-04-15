@@ -44,9 +44,10 @@ class AGEMPlugin(StrategyPlugin):
             out = strategy.model(xref)
             loss = strategy.criterion(out, yref)
             loss.backward()
-            self.reference_gradients = [
-                (n, p.grad)
-                for n, p in strategy.model.named_parameters()]
+            self.reference_gradients = torch.cat([
+                p.grad.view(-1)
+                for p in strategy.model.parameters()
+                if p.requires_grad])
 
     @torch.no_grad()
     def after_backward(self, strategy, **kwargs):
@@ -55,7 +56,7 @@ class AGEMPlugin(StrategyPlugin):
         """
         if self.memory_x is not None:
             current_gradients = [p.grad.view(-1)
-                                 for n, p in strategy.model.named_parameters()
+                                 for p in strategy.model.parameters()
                                  if p.requires_grad]
             current_gradients = torch.cat(current_gradients)
 
