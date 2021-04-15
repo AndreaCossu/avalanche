@@ -55,21 +55,25 @@ class AGEMPlugin(StrategyPlugin):
         """
         if self.memory_x is not None:
             current_gradients = [p.grad.view(-1)
-                for n, p in strategy.model.named_parameters() if p.requires_grad]
+                                 for n, p in strategy.model.named_parameters()
+                                 if p.requires_grad]
             current_gradients = torch.cat(current_gradients)
 
-            assert current_gradients.shape == self.reference_gradients.shape , "Different model parameters in AGEM projection"
+            assert current_gradients.shape == self.reference_gradients.shape,\
+                "Different model parameters in AGEM projection"
 
-            dotg = torch.dot( current_gradients, self.reference_gradients)
+            dotg = torch.dot(current_gradients, self.reference_gradients)
             if dotg < 0:
-                alpha2 = dotg / torch.dot(self.reference_gradients, self.reference_gradients)
-                grad_proj = current_gradients - self.reference_gradients * alpha2
+                alpha2 = dotg / torch.dot(self.reference_gradients,
+                                          self.reference_gradients)
+                grad_proj = current_gradients - \
+                    self.reference_gradients * alpha2
                 
                 count = 0 
                 for n, p in strategy.model.named_parameters():
                     if p.requires_grad:
                         n_param = p.numel()      
-                        p.grad.copy_( grad_proj[count:count+n_param].view_as(p) )
+                        p.grad.copy_(grad_proj[count:count+n_param].view_as(p))
                         count += n_param
 
     def after_training_exp(self, strategy, **kwargs):
@@ -124,5 +128,7 @@ class AGEMPlugin(StrategyPlugin):
                     tot += diff
                     done = True
                     
-                if done: break
-            if done: break
+                if done:
+                    break
+            if done:
+                break
