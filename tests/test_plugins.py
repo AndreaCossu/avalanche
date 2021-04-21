@@ -9,11 +9,10 @@ from torch.nn import CrossEntropyLoss
 from torch.optim import SGD
 from torch.utils.data import TensorDataset
 
-from avalanche.benchmarks import nc_scenario
+from avalanche.benchmarks import nc_benchmark
 from avalanche.logging import TextLogger
 from avalanche.models import SimpleMLP
-from avalanche.training.plugins import StrategyPlugin, MultiHeadPlugin,\
-    ReplayPlugin
+from avalanche.training.plugins import StrategyPlugin, ReplayPlugin
 from avalanche.training.strategies import Naive
 
 
@@ -109,45 +108,6 @@ class PluginTests(unittest.TestCase):
         strategy.eval([scenario.test_stream[0]], num_workers=4)
         assert all(plug.activated)
 
-    def test_multihead_optimizer_update(self):
-        # Check if the optimizer is updated correctly
-        # when heads are created and updated.
-        model = SimpleMLP(input_size=6, hidden_size=10)
-        optimizer = SGD(model.parameters(), lr=1e-3)
-        criterion = CrossEntropyLoss()
-        scenario = self.create_scenario()
-
-        plug = MultiHeadPlugin(model, 'classifier')
-        strategy = Naive(model, optimizer, criterion,
-                         train_mb_size=100, train_epochs=1, eval_mb_size=100,
-                         device='cpu', plugins=[plug]
-                         )
-        strategy.evaluator.loggers = [TextLogger(sys.stdout)]
-        print("Current Classes: ",
-              scenario.train_stream[0].classes_in_this_experience)
-        print("Current Classes: ",
-              scenario.train_stream[4].classes_in_this_experience)
-
-        # head creation
-        strategy.train(scenario.train_stream[0])
-        w_ptr = model.classifier.weight.data_ptr()
-        b_ptr = model.classifier.bias.data_ptr()
-        opt_params_ptrs = [w.data_ptr() for group in optimizer.param_groups
-                           for w in group['params']]
-        assert w_ptr in opt_params_ptrs
-        assert b_ptr in opt_params_ptrs
-
-        # head update
-        strategy.train(scenario.train_stream[4])
-        w_ptr_new = model.classifier.weight.data_ptr()
-        b_ptr_new = model.classifier.bias.data_ptr()
-        opt_params_ptrs = [w.data_ptr() for group in optimizer.param_groups
-                           for w in group['params']]
-        assert w_ptr not in opt_params_ptrs
-        assert b_ptr not in opt_params_ptrs
-        assert w_ptr_new in opt_params_ptrs
-        assert b_ptr_new in opt_params_ptrs
-
     def test_replay_balanced_memory(self):
         scenario = self.create_scenario(task_labels=True)
         mem_size = 25
@@ -187,9 +147,9 @@ class PluginTests(unittest.TestCase):
 
         train_dataset = TensorDataset(train_X, train_y)
         test_dataset = TensorDataset(test_X, test_y)
-        return nc_scenario(train_dataset, test_dataset, 5,
-                           task_labels=task_labels,
-                           fixed_class_order=list(range(10)))
+        return nc_benchmark(train_dataset, test_dataset, 5,
+                            task_labels=task_labels,
+                            fixed_class_order=list(range(10)))
 
 
 if __name__ == '__main__':
